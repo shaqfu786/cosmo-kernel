@@ -1305,7 +1305,7 @@ static irqreturn_t twl6040_audio_handler(int irq, void *data)
 	struct snd_soc_codec *codec = data;
 	struct twl6040 *twl6040 = codec->control_data;
 	struct twl6040_data *priv = snd_soc_codec_get_drvdata(codec);
-	u8 intid;
+	u8 intid, val;
 	
 //                                                                
     twl6040_clear_reg_bit(codec, TWL6040_REG_AMICBCTL, TWL6040_HMICENA);
@@ -1332,6 +1332,24 @@ static irqreturn_t twl6040_audio_handler(int irq, void *data)
 		wake_lock_timeout(&priv->wake_lock, 2 * HZ);
 		queue_delayed_work(priv->workqueue, &priv->delayed_work,
 				   msecs_to_jiffies(200));
+	}
+
+	if (intid & TWL6040_HFINT) {
+		val = twl6040_read_reg_volatile(codec, TWL6040_REG_STATUS);
+		if (val & TWL6040_HFLOCDET)
+			dev_err(codec->dev, "Left Handsfree overcurrent\n");
+		if (val & TWL6040_HFROCDET)
+			dev_err(codec->dev, "Right Handsfree overcurrent\n");
+
+		val = twl6040_read_reg_cache(codec, TWL6040_REG_HFLCTL);
+		twl6040_write(codec, TWL6040_REG_HFLCTL,
+				val & ~TWL6040_HFDRVENAL);
+
+		val = twl6040_read_reg_cache(codec, TWL6040_REG_HFRCTL);
+		twl6040_write(codec, TWL6040_REG_HFRCTL,
+				val & ~TWL6040_HFDRVENAR);
+
+		twl6040_report_event(twl6040, TWL6040_HFOC_EVENT);
 	}
 #if defined(CONFIG_SND_OMAP_SOC_LGE_JACK)
 		
