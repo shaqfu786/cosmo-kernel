@@ -22,8 +22,13 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: bcmsdh.c,v 1.57.6.4 2010-12-23 01:13:15 Exp $
+ * $Id: bcmsdh.c 300445 2011-12-03 05:37:20Z $
  */
+
+/**
+ * @file bcmsdh.c
+ */
+
 /* ****************** BCMSDH Interface Functions *************************** */
 
 #include <typedefs.h>
@@ -36,14 +41,16 @@
 
 #include <bcmsdh.h>	/* BRCM API for SDIO clients (such as wl, dhd) */
 #include <bcmsdbus.h>	/* common SDIO/controller interface */
-#include <sbsdio.h>	/* BRCM sdio device core */
+#include <sbsdio.h>	/* SDIO device core hardware definitions. */
 
-#include <sdio.h>	/* sdio spec */
+#include <sdio.h>	/* SDIO Device and Protocol Specs */
 
 #define SDIOH_API_ACCESS_RETRY_LIMIT	2
 const uint bcmsdh_msglevel = BCMSDH_ERROR_VAL;
 
-
+/**
+ * BCMSDH API context
+ */
 struct bcmsdh_info
 {
 	bool	init_success;	/* underlying driver successfully attached */
@@ -67,6 +74,15 @@ bcmsdh_enable_hw_oob_intr(bcmsdh_info_t *sdh, bool enable)
 }
 #endif
 
+/* Attach BCMSDH layer to SDIO Host Controller Driver
+ *
+ * @param osh OSL Handle.
+ * @param cfghdl Configuration Handle.
+ * @param regsva Virtual address of controller registers.
+ * @param irq Interrupt number of SDIO controller.
+ *
+ * @return bcmsdh_info_t Handle to BCMSDH context.
+ */
 bcmsdh_info_t *
 bcmsdh_attach(osl_t *osh, void *cfghdl, void **regsva, uint irq)
 {
@@ -201,6 +217,14 @@ bcmsdh_devremove_reg(void *sdh, bcmsdh_cb_fn_t fn, void *argh)
 	return BCME_UNSUPPORTED;
 }
 
+/**
+ * Read from SDIO Configuration Space
+ * @param sdh SDIO Host context.
+ * @param func_num Function number to read from.
+ * @param addr Address to read from.
+ * @param err Error return.
+ * @return value read from SDIO configuration space.
+ */
 uint8
 bcmsdh_cfg_read(void *sdh, uint fnc_num, uint32 addr, int *err)
 {
