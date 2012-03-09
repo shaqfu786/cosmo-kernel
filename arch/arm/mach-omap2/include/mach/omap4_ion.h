@@ -17,16 +17,15 @@
 #ifndef _OMAP4_ION_H
 #define _OMAP4_ION_H
 
+#include <linux/ion.h>
+
 #if defined(CONFIG_MACH_LGE_COSMO)
-//#define OMAP4_ION_HEAP_SECURE_INPUT_SIZE	(SZ_1M * 5)
 #define OMAP4_ION_HEAP_SECURE_INPUT_SIZE	(0)
 #define OMAP4_ION_HEAP_TILER_SIZE			(0)
 #define OMAP4_ION_HEAP_NONSECURE_TILER_SIZE	(0)
 
-//#define PHYS_ADDR_SMC_SIZE	(SZ_1M * 3)
 #define PHYS_ADDR_SMC_SIZE	(0)
 #define PHYS_ADDR_SMC_MEM	(0x80000000 + SZ_512M - PHYS_ADDR_SMC_SIZE)
-//#define PHYS_ADDR_DUCATI_SIZE	(SZ_1M * 105)
 #define PHYS_ADDR_DUCATI_SIZE	(SZ_1M * 85)
 #define PHYS_ADDR_DUCATI_MEM	(PHYS_ADDR_SMC_MEM - PHYS_ADDR_DUCATI_SIZE - \
 				OMAP4_ION_HEAP_SECURE_INPUT_SIZE)
@@ -40,7 +39,7 @@
 #define PHYS_ADDR_SMC_MEM	(0x80000000 + SZ_1G - PHYS_ADDR_SMC_SIZE)
 #define PHYS_ADDR_DUCATI_SIZE	(SZ_1M * 105)
 #define PHYS_ADDR_DUCATI_MEM	(PHYS_ADDR_SMC_MEM - PHYS_ADDR_DUCATI_SIZE - \
-				/*OMAP4_ION_HEAP_SECURE_INPUT_SIZE*/ SZ_1M * 90)
+				SZ_1M * 90)
 
 #endif
 
@@ -50,6 +49,15 @@
 					OMAP4_ION_HEAP_TILER_SIZE - \
 					PHYS_ADDR_TESLA_SIZE)
 #endif
+
+
+struct omap_ion_platform_data {
+	struct ion_platform_data *ion;
+	u32 tiler2d_size;
+	u32 nonsecure_tiler2d_size;
+};
+
+struct omap_ion_platform_data *get_omap_ion_platform_data(void);
 
 #ifdef CONFIG_ION_OMAP
 void omap_ion_init(void);
