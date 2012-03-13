@@ -68,6 +68,7 @@ obj-$(CONFIG_TWL6040_VIB)	+= twl6040-vib.o
 obj-$(CONFIG_GCCORE)		+= gcx/gccore/
 obj-$(CONFIG_GCBV)		+= gcx/gcbv/
 obj-$(CONFIG_GCIOCTL)		+= gcx/gcioctl/
+obj-$(CONFIG_CACHE2DMANAGER)	+= cache-2dmanager/
 # LGE_SJIT 2011-11-29 [dojip.kim@lge.com] add tspdrv from P940 GB
 # LGE_CHANGE [seungmoon.lee@lge.com] 2011-08-18
 obj-$(CONFIG_TSPDRV)		+= tspdrv/
