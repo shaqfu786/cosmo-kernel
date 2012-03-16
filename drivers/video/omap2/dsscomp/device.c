@@ -39,17 +39,20 @@
 
 #include <video/omapdss.h>
 #include <video/dsscomp.h>
+#include <plat/android-display.h>
 #include <plat/dsscomp.h>
 #include "dsscomp.h"
-#if defined(CONFIG_MACH_LGE_COSMO_3D_DISPLAY) //##hwcho_20120522
+#include "../dss/dss_features.h"
+#include "../dss/dss.h"
 #ifdef CONFIG_DSSCOMP_ADAPT
 #include "dsscomp_adapt.h"
 #endif
-#endif //##
 #include <linux/debugfs.h>
 
 static DECLARE_WAIT_QUEUE_HEAD(waitq);
 static DEFINE_MUTEX(wait_mtx);
+
+static struct dsscomp_platform_info platform_info;
 
 static u32 hwc_virt_to_phys(u32 arg)
 {
@@ -361,7 +364,7 @@ static long query_display(struct dsscomp_dev *cdev,
 static long check_ovl(struct dsscomp_dev *cdev,
 					struct dsscomp_check_ovl_data *chk)
 {
-	/* for now return all overlays as possible */
+	/* for now return all overlays as possstruct dsscomp_dev *cdevible */
 	return (1 << cdev->num_ovls) - 1;
 }
 
@@ -419,6 +422,32 @@ static void fill_cache(struct dsscomp_dev *cdev)
 	dev_info(DEV(cdev), "found %d displays and %d overlays, WB overlay %d\n",
 				cdev->num_displays, cdev->num_ovls,
 				cdev->wb_ovl ? 1 : 0);
+}
+
+static void fill_platform_info(struct dsscomp_dev *cdev)
+{
+	struct dsscomp_platform_info *p = &platform_info;
+
+	p->max_xdecim_1d = 16;
+	p->max_xdecim_2d = 16;
+	p->max_ydecim_1d = 16;
+	p->max_ydecim_2d = 2;
+
+	p->fclk = dss_feat_get_param_max(FEAT_PARAM_DSS_FCK);
+	/*
+	 * :TODO: for now overwrite with actual fclock as dss will not scale
+	 * fclock based on composition
+	 */
+	p->fclk = dispc_fclk_rate();
+
+	p->min_width = 2;
+	p->max_width = 2048;
+	p->max_height = 2048;
+
+	p->max_downscale = 4;
+	p->integer_scale_ratio_limit = 2048;
+
+	p->tiler1d_slot_size = tiler1d_slot_size(cdev);
 }
 
 static long comp_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
@@ -486,6 +515,13 @@ static long comp_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 	{
 		r = copy_from_user(&u.sdis, ptr, sizeof(u.sdis)) ? :
 		    setup_display(cdev, &u.sdis);
+		break;
+	}
+	case DSSCIOC_QUERY_PLATFORM:
+	{
+		/* :TODO: for now refill platform info as it is dynamic */
+		r = copy_to_user(ptr, &platform_info, sizeof(platform_info));
+		break;
 	}
 	default:
 		r = -EINVAL;
@@ -573,16 +609,15 @@ static int dsscomp_probe(struct platform_device *pdev)
        LGE_boot_compleate(1);
 
 	fill_cache(cdev);
+	fill_platform_info(cdev);
 
 	/* initialize queues */
 	dsscomp_queue_init(cdev);
 	dsscomp_gralloc_init(cdev);
 
-#if defined(CONFIG_MACH_LGE_COSMO_3D_DISPLAY) //##hwcho_20120522
 #ifdef CONFIG_DSSCOMP_ADAPT
 	dsscomp_adapt_init(cdev);
 #endif
-#endif //##
 	return 0;
 }
 
@@ -590,11 +625,9 @@ static int dsscomp_remove(struct platform_device *pdev)
 {
 	struct dsscomp_dev *cdev = platform_get_drvdata(pdev);
 
-#if defined(CONFIG_MACH_LGE_COSMO_3D_DISPLAY) //##hwcho_20120522
 #ifdef CONFIG_DSSCOMP_ADAPT
 	dsscomp_adapt_deinit();
 #endif
-#endif //##
 	misc_deregister(&cdev->dev);
 	debugfs_remove_recursive(cdev->dbgfs);
 	dsscomp_queue_exit();
