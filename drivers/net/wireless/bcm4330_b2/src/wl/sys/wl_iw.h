@@ -21,7 +21,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: wl_iw.h,v 1.15.80.6 2010-12-23 01:13:23 Exp $
+ * $Id: wl_iw.h,v 1.15.80.6 2010-12-23 01:13:23 $
  */
 
 
@@ -52,9 +52,10 @@
 #define PNOSSIDCLR_SET_CMD			"PNOSSIDCLR"
 
 #define PNOSETUP_SET_CMD			"PNOSETUP " 
+#define PNOSETADD_SET_CMD			"PNOSETADD"
 #define PNOENABLE_SET_CMD			"PNOFORCE"
 #define PNODEBUG_SET_CMD			"PNODEBUG"
-#define TXPOWER_SET_CMD			"TXPOWER"
+#define TXPOWER_SET_CMD				"TXPOWER"
 
 #define MAC2STR(a) (a)[0], (a)[1], (a)[2], (a)[3], (a)[4], (a)[5]
 #define MACSTR "%02x:%02x:%02x:%02x:%02x:%02x"
@@ -80,7 +81,7 @@ struct cntry_locales_custom {
 #define	WL_IW_RSSI_EXCELLENT	-57	
 #define	WL_IW_RSSI_INVALID	 0	
 #define MAX_WX_STRING 80
-#define isprintf(c) bcm_isprint(c)
+#define isprint(c) bcm_isprint(c)
 #define WL_IW_SET_ACTIVE_SCAN	(SIOCIWFIRSTPRIV+1)
 #define WL_IW_GET_RSSI			(SIOCIWFIRSTPRIV+3)
 #define WL_IW_SET_PASSIVE_SCAN	(SIOCIWFIRSTPRIV+5)
@@ -88,11 +89,6 @@ struct cntry_locales_custom {
 #define WL_IW_GET_CURR_MACADDR	(SIOCIWFIRSTPRIV+9)
 #define WL_IW_SET_STOP				(SIOCIWFIRSTPRIV+11)
 #define WL_IW_SET_START			(SIOCIWFIRSTPRIV+13)
-
-#if defined(CONFIG_LGE_BCM432X_PATCH)  && defined(SOFTAP)
-#define WL_IW_SET_STOP_SOFTAP			(SIOCIWFIRSTPRIV+10)
-#define WL_IW_SET_START_SOFTAP			(SIOCIWFIRSTPRIV+12)
-#endif
 
 
 #define WL_SET_AP_CFG           (SIOCIWFIRSTPRIV+15)
@@ -209,7 +205,7 @@ void wl_iw_detach(void);
 extern int net_os_wake_lock(struct net_device *dev);
 extern int net_os_wake_unlock(struct net_device *dev);
 extern int net_os_wake_lock_timeout(struct net_device *dev);
-extern int net_os_wake_lock_timeout_enable(struct net_device *dev);
+extern int  net_os_wake_lock_ctrl_timeout_enable(struct net_device *dev, int val);
 extern int net_os_set_suspend_disable(struct net_device *dev, int val);
 extern int net_os_set_suspend(struct net_device *dev, int val, int force);
 extern int net_os_set_dtim_skip(struct net_device *dev, int val);
@@ -231,6 +227,18 @@ extern void get_customized_country_code(char *country_iso_code, wl_country_t *cs
 #define IWE_STREAM_ADD_POINT(info, stream, ends, iwe, extra) \
 	iwe_stream_add_point(stream, ends, iwe, extra)
 #endif
+
+extern int dhd_pno_enable(dhd_pub_t *dhd, int pfn_enabled);
+extern int dhd_pno_clean(dhd_pub_t *dhd);
+extern int dhd_pno_set(dhd_pub_t *dhd, wlc_ssid_t* ssids_local, int nssid,
+                       ushort  scan_fr, int pno_repeat, int pno_freq_expo_max);
+extern int dhd_pno_get_status(dhd_pub_t *dhd);
+extern int dhd_dev_pno_reset(struct net_device *dev);
+extern int dhd_dev_pno_set(struct net_device *dev, wlc_ssid_t* ssids_local,
+                           int nssid, ushort  scan_fr, int pno_repeat, int pno_freq_expo_max);
+extern int dhd_dev_pno_enable(struct net_device *dev,  int pfn_enabled);
+extern int dhd_dev_get_pno_status(struct net_device *dev);
+extern int dhd_get_dtim_skip(dhd_pub_t *dhd);
 
 void	dhd_bus_country_set(struct net_device *dev, wl_country_t *cspec);
 
@@ -302,5 +310,11 @@ extern int wl_iw_parse_channel_list(char** list_str, uint16* channel_list, int c
 
 
 #define NETDEV_PRIV(dev)	(*(wl_iw_t **)netdev_priv(dev))
+
+#ifdef CONFIG_WPS2
+#define WPS_ADD_PROBE_REQ_IE_CMD "ADD_WPS_PROBE_REQ_IE "
+#define WPS_DEL_PROBE_REQ_IE_CMD "DEL_WPS_PROBE_REQ_IE "
+#define WPS_PROBE_REQ_IE_CMD_LENGTH 21
+#endif
 
 #endif 
