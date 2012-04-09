@@ -749,15 +749,16 @@ static int hdmi_power_on(struct omap_dss_device *dssdev)
 		dssdev->panel.timings.y_res, hdmi.mode);
 
 	if (!hdmi.custom_set) {
-        //                                
-        // MOD : for default mode. p2 is not dvi, is hdmi.
-        #if 1
-	    struct fb_videomode vga = cea_modes[4];
-	    hdmi_set_timings(&vga, false);
-        #else
-	    struct fb_videomode vesa_vga = vesa_modes[4];
-	    hdmi_set_timings(&vesa_vga, false);
-        #endif
+		u32 cea_code = 0;
+		struct fb_videomode default_mode;
+
+		cea_code = dssdev->panel.hdmi_default_cea_code;
+		if (cea_code > 0 && cea_code < CEA_MODEDB_SIZE)
+			default_mode = cea_modes[cea_code];
+		else
+			default_mode = vesa_modes[4];
+
+		hdmi_set_timings(&default_mode, false);
 	}
 
 	omapfb_fb2dss_timings(&hdmi.cfg.timings, &dssdev->panel.timings);
