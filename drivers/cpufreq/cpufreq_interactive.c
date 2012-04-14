@@ -35,8 +35,6 @@
 
 static atomic_t active_count = ATOMIC_INIT(0);
 
-static struct timer_list boost_timer;
-
 struct cpufreq_interactive_cpuinfo {
 	struct timer_list cpu_timer;
 	int timer_idlecancel;
@@ -83,12 +81,15 @@ static unsigned long min_sample_time;
 #define DEFAULT_TIMER_RATE 20 * USEC_PER_MSEC
 static unsigned long timer_rate;
 
-static unsigned int boost_timeout;
+/*
+ * Wait this long before raising speed above hispeed, by default a single
+ * timer interval.
+ */
+#define DEFAULT_ABOVE_HISPEED_DELAY DEFAULT_TIMER_RATE
+static unsigned long above_hispeed_delay_val;
 
 static int cpufreq_governor_interactive(struct cpufreq_policy *policy,
 		unsigned int event);
-
-static int interactive_boost(struct cpufreq_policy *policy);
 
 #ifndef CONFIG_CPU_FREQ_DEFAULT_GOV_INTERACTIVE
 static
@@ -98,7 +99,6 @@ struct cpufreq_governor cpufreq_gov_interactive = {
 	.governor = cpufreq_governor_interactive,
 	.max_transition_latency = 10000000,
 	.owner = THIS_MODULE,
-	.boost_cpu_freq = interactive_boost,
 };
 
 static void cpufreq_interactive_timer(unsigned long data)
@@ -181,6 +181,17 @@ static void cpufreq_interactive_timer(unsigned long data)
 
 			if (new_freq < hispeed_freq)
 				new_freq = hispeed_freq;
+
+			if (pcpu->target_freq == hispeed_freq &&
+			    new_freq > hispeed_freq &&
+			    cputime64_sub(pcpu->timer_run_time,
+					  pcpu->target_set_time)
+			    < above_hispeed_delay_val) {
+				trace_cpufreq_interactive_notyet(data, cpu_load,
+								 pcpu->target_freq,
+								 new_freq);
+				goto rearm;
+			}
 		}
 	} else {
 		new_freq = pcpu->policy->max * cpu_load / 100;
@@ -522,6 +533,28 @@ static ssize_t store_min_sample_time(struct kobject *kobj,
 static struct global_attr min_sample_time_attr = __ATTR(min_sample_time, 0644,
 		show_min_sample_time, store_min_sample_time);
 
+static ssize_t show_above_hispeed_delay(struct kobject *kobj,
+					struct attribute *attr, char *buf)
+{
+	return sprintf(buf, "%lu\n", above_hispeed_delay_val);
+}
+
+static ssize_t store_above_hispeed_delay(struct kobject *kobj,
+					 struct attribute *attr,
+					 const char *buf, size_t count)
+{
+	int ret;
+	unsigned long val;
+
+	ret = strict_strtoul(buf, 0, &val);
+	if (ret < 0)
+		return ret;
+	above_hispeed_delay_val = val;
+	return count;
+}
+
+define_one_global_rw(above_hispeed_delay);
+
 static ssize_t show_timer_rate(struct kobject *kobj,
 			struct attribute *attr, char *buf)
 {
@@ -544,35 +577,12 @@ static ssize_t store_timer_rate(struct kobject *kobj,
 static struct global_attr timer_rate_attr = __ATTR(timer_rate, 0644,
 		show_timer_rate, store_timer_rate);
 
-static ssize_t show_boost_timeout(struct kobject *kobj,
-			struct attribute *attr, char *buf)
-{
-	return sprintf(buf, "%u\n", boost_timeout);
-}
-
-static ssize_t store_boost_timeout(struct kobject *kobj,
-			struct attribute *attr, const char *buf, size_t count)
-{
-	unsigned int input;
-	int ret;
-	ret = sscanf(buf, "%u", &input);
-	if (ret != 1)
-		return -EINVAL;
-
-	boost_timeout = input;
-
-	return count;
-}
-
-static struct global_attr boost_timeout_attr = __ATTR(boost_timeout, 0644,
-		show_boost_timeout, store_boost_timeout);
-
 static struct attribute *interactive_attributes[] = {
 	&hispeed_freq_attr.attr,
 	&go_hispeed_load_attr.attr,
+	&above_hispeed_delay.attr,
 	&min_sample_time_attr.attr,
 	&timer_rate_attr.attr,
-	&boost_timeout_attr.attr,
 	NULL,
 };
 
@@ -683,50 +693,6 @@ static struct notifier_block cpufreq_interactive_idle_nb = {
 	.notifier_call = cpufreq_interactive_idle_notifier,
 };
 
-static int interactive_boost(struct cpufreq_policy *policy)
-{
-	struct cpufreq_interactive_cpuinfo *pcpu;
-	unsigned int i;
-
-	if (!cpu_online(policy->cpu))
-		return -EINVAL;
-
-	if (timer_pending(&boost_timer))
-		return -EINVAL;
-
-	if (!boost_timeout)
-		return 0;
-
-	for_each_cpu(i, policy->cpus) {
-		pcpu = &per_cpu(cpuinfo, i);
-		pcpu->governor_enabled = 0;
-		smp_wmb();
-		del_timer_sync(&pcpu->cpu_timer);
-		pcpu->idle_exit_time = 0;
-	}
-	__cpufreq_driver_target(policy, policy->max,
-			CPUFREQ_RELATION_H);
-
-	boost_timer.data = (unsigned long)policy;
-	mod_timer(&boost_timer,
-			jiffies + usecs_to_jiffies(boost_timeout));
-
-	return 0;
-}
-
-static void interactive_boost_timer(unsigned long data)
-{
-	struct cpufreq_interactive_cpuinfo *pcpu;
-	struct cpufreq_policy *policy = (struct cpufreq_policy *)data;
-	unsigned int i;
-
-	for_each_cpu(i, policy->cpus) {
-		pcpu = &per_cpu(cpuinfo, i);
-		pcpu->governor_enabled = 1;
-		smp_wmb();
-	}
-}
-
 static int __init cpufreq_interactive_init(void)
 {
 	unsigned int i;
@@ -744,9 +710,6 @@ static int __init cpufreq_interactive_init(void)
 		pcpu->cpu_timer.function = cpufreq_interactive_timer;
 		pcpu->cpu_timer.data = i;
 	}
-
-	init_timer(&boost_timer);
-	boost_timer.function = interactive_boost_timer;
 
 	up_task = kthread_create(cpufreq_interactive_up_task, NULL,
 				 "kinteractiveup");
