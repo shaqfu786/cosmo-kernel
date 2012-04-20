@@ -185,7 +185,6 @@ config MACH_OMAP3EVM
 	default y
 	select OMAP_PACKAGE_CBB
 
-
 config MACH_OMAP3517EVM
 	bool "OMAP3517/ AM3517 EVM board"
 	depends on ARCH_OMAP3
@@ -336,6 +335,7 @@ config MACH_OMAP_4430SDP
 	select TWL6030_GPADC
 	select OMAP_REBOOT_REASON
 	select OMAP_RAM_CONSOLE
+	select CDC_TCXO
 
 config MACH_OMAP_BLAZE
 	bool "OMAP 44xx Tablet2 Board"
@@ -357,6 +357,7 @@ config MACH_OMAP_BLAZE
 	select TWL6040_VIB
 	select OMAP_REBOOT_REASON
 	select OMAP_RAM_CONSOLE
+	select CDC_TCXO
 
 config MACH_OMAP4_PANDA
 	bool "OMAP4 Panda Board"
@@ -510,7 +511,16 @@ config P940_GPS_LNA_SD_USE
 	default n
 	help
 	  If you want to support GPS extend LNA GPIO, say Y.
-	  
+
+config OMAP_RFKILL_STE_MODEM
+	bool "Enable OMAP RFKILL driver for ST-E modem"
+	depends on RFKILL || !RFKILL
+	help
+	  Select this option to enable usage of RFKILL driver for ST-E modem on
+	  OMAP platforms. This will permit control of power on and off sequences
+	  of the modem as well as necessary dynamic pin muxing of AP/CP
+	  interfaces (platform data dependant)
+
 endmenu
 
 endif
