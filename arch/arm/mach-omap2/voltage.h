@@ -186,7 +186,6 @@ struct omap_volt_data {
 #define OMAP3_VP_VSTEPMAX_VSTEPMAX	0x04
 #define OMAP3_VP_VLIMITTO_TIMEOUT_US	200
 
-//                                                                                           
 #define OMAP4_VP_MPU_VLIMITTO_VDDMIN	830000
 #define OMAP4_VP_IVA_VLIMITTO_VDDMIN	830000
 #define OMAP4_VP_CORE_VLIMITTO_VDDMIN	830000
@@ -198,30 +197,27 @@ struct omap_volt_data {
 #define OMAP4460_VP_MPU_VLIMITTO_VDDMAX		1380000
 #define OMAP4460_VP_IVA_VLIMITTO_VDDMAX		1375000
 #define OMAP4460_VP_CORE_VLIMITTO_VDDMAX	1250000
-//                                            
 
 #define OMAP4_VP_CONFIG_ERROROFFSET	0x00
 #define OMAP4_VP_VSTEPMIN_VSTEPMIN	0x01
 #define OMAP4_VP_VSTEPMAX_VSTEPMAX	0x04
 #define OMAP4_VP_VLIMITTO_TIMEOUT_US	200
 
-/* 
-                                                                           
-                                        
-                                             
-                                                               
-                                                                         
-                                                                       
-                                                                
-                                                                         
-                                                                           
-                                                                        
-                                                                          
-                                                             
-                                                                                                    
-                                                                            
-                                                                            
-                                               
+/**
+ * struct omap_voltdm_pmic - PMIC specific data required by voltage driver.
+ * @slew_rate:	PMIC slew rate (in uv/us)
+ * @step_size:	PMIC voltage step size (in uv)
+ * @i2c_high_speed: whether VC uses I2C high-speed mode to PMIC
+ * @i2c_mcode: master code value for I2C high-speed preamble transmission
+ * @vsel_to_uv:	PMIC API to convert vsel value to actual voltage in uV.
+ * @uv_to_vsel:	PMIC API to convert voltage in uV to vsel value.
+ * @i2c_hscll_low: PMIC interface speed config for highspeed mode (T low)
+ * @i2c_hscll_high: PMIC interface speed config for highspeed mode (T high)
+ * @i2c_scll_low: PMIC interface speed config for fullspeed mode (T low)
+ * @i2c_scll_high: PMIC interface speed config for fullspeed mode (T high)
+ * @switch_on_time: time taken for switch on the DCDC in uSec
+ * @max_volt: Maximum supported voltage in uV (should be contigous till min)
+ * @min_volt: Minimum supported voltage in uV (should be contigous till max)
  */
 struct omap_voltdm_pmic {
 	int slew_rate;
@@ -235,10 +231,8 @@ struct omap_voltdm_pmic {
 	u8 vp_erroroffset;
 	u8 vp_vstepmin;
 	u8 vp_vstepmax;
-//                                                                                                  
 	u32 min_volt;
 	u32 max_volt;
-//                                            
 	u8 vp_timeout_us;
 	u16 i2c_slave_addr;
 	u16 volt_reg_addr;
