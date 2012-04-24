@@ -76,10 +76,11 @@ enum extension_edid_db {
 #define EDID_TIMING_DESCRIPTOR_SIZE		0x12
 #define EDID_DESCRIPTOR_BLOCK0_ADDRESS		0x36
 #define EDID_DESCRIPTOR_BLOCK1_ADDRESS		0x80
+#define EDID_HDMI_VENDOR_SPECIFIC_DATA_BLOCK	128
 #define EDID_SIZE_BLOCK0_TIMING_DESCRIPTOR	4
 #define EDID_SIZE_BLOCK1_TIMING_DESCRIPTOR	4
 
-#define OMAP_HDMI_TIMINGS_NB
+#define OMAP_HDMI_TIMINGS_NB			34
 
 static struct {
 	struct mutex lock;
@@ -110,7 +111,7 @@ static struct {
 	u8 s3d_mode;
 	bool s3d_enable;
 	u8 s3d_type;  //mo2sanghyun.lee 
-
+	int source_physical_address;
 	void (*hdmi_start_frame_cb)(void);
 	void (*hdmi_irq_cb)(int);
 	bool (*hdmi_power_on_cb)(void);
@@ -386,6 +387,23 @@ void hdmi_get_monspecs(struct fb_monspecs *specs)
 		specs->modedb[j++] = specs->modedb[i];
 	}
 	specs->modedb_len = j;
+
+	/* Find out the Source Physical address for the CEC
+	CEC physical address will be part of VSD block from
+	TV Physical address is 2 bytes after 24 bit IEEE
+	registration identifier (0x000C03)
+	*/
+	i = EDID_HDMI_VENDOR_SPECIFIC_DATA_BLOCK;
+	while (i < (HDMI_EDID_MAX_LENGTH - 5)) {
+		if ((edid[i] == 0x03) && (edid[i+1] == 0x0c) &&
+			(edid[i+2] == 0x00)) {
+			hdmi.source_physical_address = (edid[i+3] << 8) |
+				edid[i+4];
+			break;
+		}
+		i++;
+
+	}
 }
 
 u8 *hdmi_read_edid(struct omap_video_timings *dp)
@@ -786,7 +804,6 @@ static int hdmi_power_on(struct omap_dss_device *dssdev)
 	if (!dispc_is_channel_enabled(OMAP_DSS_CHANNEL_LCD) &&
 	    !dispc_is_channel_enabled(OMAP_DSS_CHANNEL_LCD2))
 		dss_select_dispc_clk_source(dssdev->clocks.dispc.dispc_fclk_src);
-
 
 	/* bypass TV gamma table */
 //                                                               
@@ -1190,8 +1207,7 @@ static int omapdss_hdmihw_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	hdmi.hdmi_irq = platform_get_irq(pdev, 0);
-//                                              
+	hdmi.hdmi_irq = platform_get_irq(pdev, 0);                                              
 #if 0
 	r = request_irq(hdmi.hdmi_irq, hdmi_irq_handler, 0, "OMAP HDMI", NULL);
 	if (r < 0) {
@@ -1199,8 +1215,7 @@ static int omapdss_hdmihw_probe(struct platform_device *pdev)
 			pdev->name);
 		return -EINVAL;
 	}
-#endif
-//                                              
+#endif                                             
 
 	hdmi.hdmi_data.hdmi_core_sys_offset = HDMI_CORE_SYS;
 	hdmi.hdmi_data.hdmi_core_av_offset = HDMI_CORE_AV;
@@ -1210,12 +1225,10 @@ static int omapdss_hdmihw_probe(struct platform_device *pdev)
 
 	hdmi_panel_init();
 
-//                                                                             
 #if 0
 	if(hdmi_get_current_hpd())
 		hdmi_panel_hpd_handler(1);
-#endif
-//                                               
+#endif                                               
 
 	return 0;
 }
