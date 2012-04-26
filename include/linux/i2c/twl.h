@@ -677,6 +677,7 @@ struct twl4030_bci_platform_data {
 	unsigned long features;
 	unsigned int use_eeprom_config;
 
+	unsigned long errata;
 	/*                                        
                               
   */
