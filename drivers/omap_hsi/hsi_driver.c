@@ -56,7 +56,17 @@
 /* Notify active/sleep status of AP to CP*/
 #define MODEM_SEND 		121 /* MODEM_SEND gpio_121 */
 #endif
+#ifdef CONFIG_OMAP4_DPLL_CASCADING
+struct hsi_dpll_cascading_blocker {
+	bool lock_dpll_cascading;
+	struct device *dev;
+	struct work_struct dpll_blocker_work;
+};
 
+static struct hsi_dpll_cascading_blocker dpll_blocker = {
+	.lock_dpll_cascading = true,
+};
+#endif
 //mo2haewoon.you => [START]
 #if defined (HSI_SEND_ATCOMMAND_TO_CAWAKE)
 #define OMAP_SEND       122 /* OMAP_SEND gpio 122 */
@@ -310,7 +320,7 @@ void hsi_set_pm_force_hsi_on(struct hsi_dev *hsi_ctrl)
 	/* SIdleAck and MStandby are never asserted */
 	hsi_outl((HSI_AUTOIDLE | HSI_SIDLEMODE_NO |
 				 HSI_MIDLEMODE_NO),
-		 hsi_ctrl->base, HSI_SYS_SYSCONFIG_REG);
+		hsi_ctrl->base, HSI_SYS_SYSCONFIG_REG);
 	hsi_outl(HSI_CLK_AUTOGATING_ON, hsi_ctrl->base, HSI_GDD_GCR_REG);
 
 	/* HSI_TODO : use the HWMOD API : omap_hwmod_set_slave_idlemode() */
@@ -669,6 +679,22 @@ static int __init hsi_init_gdd_chan_count(struct hsi_dev *hsi_ctrl)
 	return 0;
 }
 
+#ifdef CONFIG_OMAP4_DPLL_CASCADING
+static void hsi_dpll_cascading_blocker_work(struct work_struct *work)
+{
+	struct hsi_dpll_cascading_blocker *dpll_blocker;
+
+	dpll_blocker = container_of(work,
+			struct hsi_dpll_cascading_blocker,
+			dpll_blocker_work);
+
+	if (dpll_blocker->lock_dpll_cascading)
+		omap4_dpll_cascading_blocker_hold(dpll_blocker->dev);
+	else
+		omap4_dpll_cascading_blocker_release(dpll_blocker->dev);
+}
+#endif
+
 /**
 * hsi_clocks_disable_channel - virtual wrapper for disabling HSI clocks for
 * a given channel
@@ -709,11 +735,13 @@ void hsi_clocks_disable_channel(struct device *dev, u8 channel_number,
 		dev_dbg(dev, "Disabling clocks with HST FSM not IDLE !\n");
 #endif
 //                                                  
-#ifdef K3_0_PORTING_HSI_MISSING_FEATURE
 
+
+#ifdef CONFIG_OMAP4_DPLL_CASCADING
 	/* Allow Fclk to change */
-	if (dpll_cascading_blocker_release(dev) < 0)
-		dev_warn(dev, "Error releasing DPLL cascading constraint\n");
+	dpll_blocker.lock_dpll_cascading = false;
+	dpll_blocker.dev = dev;
+	schedule_work(&dpll_blocker.dpll_blocker_work);
 #endif
 
 	pm_runtime_put_sync_suspend(dev);
@@ -751,10 +779,11 @@ int hsi_clocks_enable_channel(struct device *dev, u8 channel_number,
 		return -EEXIST;
 	}
 
-#ifdef K3_0_PORTING_HSI_MISSING_FEATURE
-	/* Prevent Fclk change */
-	if (dpll_cascading_blocker_hold(dev) < 0)
-		dev_warn(dev, "Error holding DPLL cascading constraint\n");
+#ifdef CONFIG_OMAP4_DPLL_CASCADING
+	/* Prevent Fclk to change */
+	dpll_blocker.lock_dpll_cascading = true;
+	dpll_blocker.dev = dev;
+	schedule_work(&dpll_blocker.dpll_blocker_work);
 #endif
 
 	return pm_runtime_get_sync(dev);
@@ -1321,6 +1350,11 @@ static int __init hsi_driver_init(void)
 		goto rback1;
 	}
 
+#ifdef CONFIG_OMAP4_DPLL_CASCADING
+	INIT_WORK(&dpll_blocker.dpll_blocker_work,
+			hsi_dpll_cascading_blocker_work);
+#endif
+
 	/* Register the HSI platform driver */
 	err = platform_driver_probe(&hsi_pdriver, hsi_platform_device_probe);
 	if (err < 0) {
@@ -1338,14 +1372,17 @@ rback1:
 
 static void __exit hsi_driver_exit(void)
 {
+#ifdef CONFIG_OMAP4_DPLL_CASCADING
+	flush_work_sync(&dpll_blocker.dpll_blocker_work);
+#endif
 	platform_driver_unregister(&hsi_pdriver);
 	hsi_debug_exit();
 	hsi_bus_exit();
+
 	pr_info(LOG_NAME "HSI DRIVER removed\n");
 }
 
-late_initcall(hsi_driver_init);  //hyungsun.seo_111213 added for ICS
-//module_init(hsi_driver_init);
+module_init(hsi_driver_init);
 module_exit(hsi_driver_exit);
 
 MODULE_ALIAS("platform:" HSI_MODULENAME);
