@@ -6,7 +6,7 @@
  * Copyright (C) 2006-2007 Nokia Corporation
  *
  * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Publ`ic License
+ * modify it under the terms of the GNU General Public License
  * version 2 as published by the Free Software Foundation.
  *
  * This program is distributed in the hope that it will be useful, but
@@ -101,6 +101,10 @@
 #include <linux/io.h>
 
 #include "musb_core.h"
+
+#ifdef CONFIG_OMAP4_DPLL_CASCADING
+#include <mach/omap4-common.h>
+#endif
 
 // hunsoo.lee
 /* USB is disconnect even if usb is pluged. Set wake_lock */
@@ -424,6 +428,9 @@ static irqreturn_t musb_stage0_irq(struct musb *musb, u8 int_usb,
 {
 	irqreturn_t handled = IRQ_NONE;
 
+#ifdef CONFIG_OMAP4_DPLL_CASCADING
+	musb->event = -1;
+#endif
 	dev_dbg(musb->controller, "<== Power=%02x, DevCtl=%02x, int_usb=0x%x\n", power, devctl,
 		int_usb);
 
@@ -685,8 +692,11 @@ static irqreturn_t musb_stage0_irq(struct musb *musb, u8 int_usb,
 		set_bit(HCD_FLAG_SAW_IRQ, &hcd->flags);
 
 		musb->ep0_stage = MUSB_EP0_START;
-		/*                   
-                                                            */
+
+#ifdef CONFIG_OMAP4_DPLL_CASCADING
+		musb->event = USB_EVENT_ID;
+#endif
+
 #if defined(CONFIG_MACH_LGE)
 		wake_lock(&musb_wake_lock);
 #else
@@ -758,8 +768,10 @@ b_host:
 				MUSB_MODE(musb), devctl);
 		handled = IRQ_HANDLED;
 
-		/*                   
-                                                            */
+#ifdef CONFIG_OMAP4_DPLL_CASCADING
+		musb->event = USB_EVENT_NONE;
+#endif
+
 #if defined(CONFIG_MACH_LGE)
 		if(wake_lock_active(&musb_wake_lock)) {
 			wake_unlock(&musb_wake_lock);
@@ -769,7 +781,7 @@ b_host:
 		//hunsoo.lee
 		wake_unlock(&musb_lock);
 #endif
-		
+
 		switch (musb->xceiv->state) {
 #ifdef CONFIG_USB_MUSB_HDRC_HCD
 		case OTG_STATE_A_HOST:
@@ -839,9 +851,10 @@ b_host:
 		} else if (is_peripheral_capable()) {
 			dev_dbg(musb->controller, "BUS RESET as %s\n",
 				otg_state_string(musb->xceiv->state));
+#ifdef CONFIG_OMAP4_DPLL_CASCADING
+				musb->event = USB_EVENT_VBUS;
+#endif
 
-			/*                   
-                                                             */
 #if defined(CONFIG_MACH_LGE)
 			wake_lock(&musb_wake_lock);
 #else
@@ -1859,6 +1872,14 @@ static void musb_irq_work(struct work_struct *data)
 		old_state = musb->xceiv->state;
 		sysfs_notify(&musb->controller->kobj, NULL, "mode");
 	}
+#ifdef CONFIG_OMAP4_DPLL_CASCADING
+	if (USB_EVENT_VBUS == musb->event)
+		omap4_dpll_cascading_blocker_hold(musb->controller);
+	else if (USB_EVENT_ID == musb->event)
+		omap4_dpll_cascading_blocker_hold(musb->controller);
+	else if (USB_EVENT_NONE == musb->event)
+		omap4_dpll_cascading_blocker_release(musb->controller);
+#endif
 }
 
 /* --------------------------------------------------------------------------
@@ -1988,10 +2009,6 @@ musb_init_controller(struct device *dev, int nIrq, void __iomem *ctrl)
 	musb->board_set_power = plat->set_power;
 	musb->min_power = plat->min_power;
 	musb->ops = plat->platform_ops;
-
-	// hunsoo.lee
-	//wake_lock_init(&musb_lock, WAKE_LOCK_SUSPEND, "musb_wake_lock");
-
 
 	/* The musb_platform_init() call:
 	 *   - adjusts musb->mregs and musb->isr if needed,
