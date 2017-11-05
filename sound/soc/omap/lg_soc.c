@@ -1230,6 +1230,8 @@ static void __exit sdp4430_soc_exit(void)
 #if 0 //Ti patch
 	regulator_put(av_switch_reg);
 #endif
+	cdc_tcxo_set_req_int(CDC_TCXO_CLK3, 0);
+	cdc_tcxo_set_req_prio(CDC_TCXO_CLK3, CDC_TCXO_PRIO_REQINT);
 	platform_device_unregister(sdp4430_snd_device);
 	snd_soc_unregister_dais(&sdp4430_snd_device->dev, ARRAY_SIZE(dai));
 }
