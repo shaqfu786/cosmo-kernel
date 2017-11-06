@@ -50,6 +50,7 @@
 #include <mach-omap2/omap_ram_console.h>
 
 #include <video/omapdss.h>
+#include <plat/android-display.h>
 
 #include <lge/board.h>
 #include <lge/common.h>
@@ -715,9 +716,7 @@ void __init lge_common_map_io(void)
 
 void __init lge_common_reserve(void)
 {
-	/*                                        
-                                          
-  */
+
 	omap_ram_console_init(LGE_RAM_CONSOLE_START_DEFAULT,
 			ALIGN(LGE_RAM_CONSOLE_SIZE_DEFAULT, SZ_1M));
 
@@ -739,8 +738,18 @@ void __init lge_common_reserve(void)
 #endif
 
 #ifdef CONFIG_ION_OMAP
+	omap_android_display_setup(&lge_machine_data.dss_board,
+				   NULL,
+				   NULL,
+				   &fb_pdata,
+				   get_omap_ion_platform_data());
 	omap_ion_init();
-#endif
+#else
+	omap_android_display_setup(&lge_machine_data.dss_board,
+				   NULL,
+				   NULL,
+				   &fb_pdata,
+				   NULL);
 	omap_reserve();
 }
 
