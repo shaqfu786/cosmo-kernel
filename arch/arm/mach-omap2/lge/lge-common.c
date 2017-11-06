@@ -23,6 +23,7 @@
 #include <linux/reboot.h>
 #include <linux/omapfb.h>
 #include <linux/memblock.h>
+#include <linux/cdc_tcxo.h>
 
 #include <plat/i2c.h>
 #include <plat/irqs.h>
@@ -37,6 +38,7 @@
 
 #include <mach/omap4-common.h>
 #include <mach/dmm.h>
+#include <mach/omap4_ion.h>
 
 #include <mach-omap2/pm.h>
 #include <mach-omap2/mux.h>
