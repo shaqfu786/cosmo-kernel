@@ -717,20 +717,7 @@ void __init lge_common_map_io(void)
 void __init lge_common_reserve(void)
 {
 
-	omap_ram_console_init(LGE_RAM_CONSOLE_START_DEFAULT,
-			ALIGN(LGE_RAM_CONSOLE_SIZE_DEFAULT, SZ_1M));
-
-	/* do the static reservations first */
-	memblock_remove(PHYS_ADDR_SMC_MEM, PHYS_ADDR_SMC_SIZE);
-	memblock_remove(PHYS_ADDR_DUCATI_MEM, PHYS_ADDR_DUCATI_SIZE);
-	/* ipu needs to recognize secure input buffer area as well */
-#if defined(CONFIG_MACH_LGE_COSMO)	
-	omap_ipu_set_static_mempool(PHYS_ADDR_DUCATI_MEM, PHYS_ADDR_DUCATI_SIZE +
-					OMAP4_ION_HEAP_SECURE_INPUT_SIZE);
-#else
-	omap_ipu_set_static_mempool(PHYS_ADDR_DUCATI_MEM, PHYS_ADDR_DUCATI_SIZE +
-					SZ_1M*90);
-#endif
+	omap_init_ram_size();
 
 #ifdef CONFIG_ION_OMAP
 	omap_android_display_setup(&lge_machine_data.dss_board,
@@ -745,6 +732,22 @@ void __init lge_common_reserve(void)
 				   NULL,
 				   &fb_pdata,
 				   NULL);
+#endif
+
+	omap_ram_console_init(LGE_RAM_CONSOLE_START_DEFAULT,
+			ALIGN(LGE_RAM_CONSOLE_SIZE_DEFAULT, SZ_1M));
+
+	/* do the static reservations first */
+	memblock_remove(PHYS_ADDR_SMC_MEM, PHYS_ADDR_SMC_SIZE);
+	memblock_remove(PHYS_ADDR_DUCATI_MEM, PHYS_ADDR_DUCATI_SIZE);
+	/* ipu needs to recognize secure input buffer area as well */
+#if defined(CONFIG_MACH_LGE_COSMO)	
+	omap_ipu_set_static_mempool(PHYS_ADDR_DUCATI_MEM, PHYS_ADDR_DUCATI_SIZE +
+					OMAP4_ION_HEAP_SECURE_INPUT_SIZE);
+#else
+	omap_ipu_set_static_mempool(PHYS_ADDR_DUCATI_MEM, PHYS_ADDR_DUCATI_SIZE +
+					SZ_1M*90);
+#endif
 	omap_reserve();
 }
 
