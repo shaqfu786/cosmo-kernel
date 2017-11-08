@@ -311,9 +311,7 @@ static long query_display(struct dsscomp_dev *cdev,
 		(dev->state == OMAP_DSS_DISPLAY_ACTIVE);
 	dis->overlays_available = 0;
 	dis->overlays_owned = 0;
-#if 0
 	dis->s3d_info = dev->panel.s3d_info;
-#endif
 	dis->state = dev->state;
 	dis->timings = dev->panel.timings;
 
@@ -328,6 +326,9 @@ static long query_display(struct dsscomp_dev *cdev,
 			dis->overlays_available |= 1 << i;
 	}
 	if (cdev->wb_ovl) {
+		cdev->wb_ovl->width = dis->timings.x_res;
+		cdev->wb_ovl->height = dis->timings.y_res;
+
 		if (cdev->wb_ovl->info.source == mgr->id)
 			dis->overlays_owned |= 1 << OMAP_DSS_WB;
 		else if (!cdev->wb_ovl->info.enabled)

@@ -417,6 +417,57 @@ done:
 	return wb->set_wb_info(wb, &info);
 }
 
+int set_dss_wb_params(const struct dss2_wb_params *wb_params,
+		struct omap_overlay_manager *manager)
+{
+	struct omap_writeback_info info;
+	struct omap_writeback *wb;
+	union rect crop, win;
+
+	if (!wb_params)
+		return -EINVAL;
+
+	wb = omap_dss_get_wb(0);
+
+	if (!wb)
+		return -EINVAL;
+
+	/* just in case there are new fields, we get the current info */
+	wb->get_wb_info(wb, &info);
+
+	info.enabled = wb_params->enable;
+	if (!info.enabled)
+		goto done;
+
+	/* We always use output of manager for WB input */
+	info.source = wb_params->source;
+	info.capturemode = OMAP_WB_CAPTURE_ALL;
+	/* M2M or capture mode? */
+	info.mode = wb_params->wb_mode;
+	info.line_skip = wb_params->line_skip;
+
+	/*
+	 * TODO: current code does not support cropping, rotation
+	 * Also scaling has limited support. need to update
+	 */
+	info.width      = wb_params->width;
+	info.height     = wb_params->height;
+	info.out_width  = wb_params->width;
+	info.out_height = wb_params->height;
+
+	crop.x = win.x  = 0;
+	crop.y = win.y  = 0;
+	crop.w          = info.width;
+	crop.h          = info.width;
+
+	info.dss_mode = wb_params->color_mode;
+	info.paddr = wb_params->output_buf_pa;
+	info.p_uv_addr = wb_params->p_uv_addr;
+done:
+	/* set overlay info */
+	return wb->set_wb_info(wb, &info);
+}
+
 void swap_rb_in_ovl_info(struct dss2_ovl_info *oi)
 {
 	/* we need to swap YUV color matrix if we are swapping R and B */

@@ -32,6 +32,7 @@
 #include <linux/debugfs.h>
 
 #include "dsscomp.h"
+#include "s3d.h"
 /* queue state */
 
 static DEFINE_MUTEX(mtx);
@@ -172,6 +173,9 @@ int dsscomp_queue_init(struct dsscomp_dev *cdev_)
 		}
 	}
 
+	/* Initialize the previous composition state */
+	cdev->previous_comp_state = -1;
+
 	return 0;
 error:
 	while (i--)
@@ -293,9 +297,15 @@ int dsscomp_set_ovl(dsscomp_t comp, struct dss2_ovl_info *ovl)
 
 		/* and disabled (unless forced) if on another manager */
 		o = cdev->ovls[ovl->cfg.ix];
-		if (ovl->cfg.ix != OMAP_DSS_WB) {
-			if (o->info.enabled &&
-			   (!o->manager || o->manager->id != ix))
+		if (ovl->cfg.ix == OMAP_DSS_WB) {
+			struct omap_writeback *wb = cdev->wb_ovl;
+			if (wb && wb->info.enabled && wb->info.source != ix)
+				goto done;
+		} else {
+			if ((o->info.enabled &&
+				(!o->manager || o->manager->id != ix)) &&
+				(comp->composition_mode !=
+					DSSCOMP_WB_M2M_ROW_INTERLEAVED))
 				goto done;
 		}
 
@@ -511,6 +521,8 @@ int dsscomp_apply(dsscomp_t comp)
 	u32 oix;
 	bool cb_programmed = false;
 	bool wb_apply = false;
+	int *previous_state = NULL;
+	int current_state = -1;
 
 	struct omapdss_ovl_cb cb = {
 		.fn = dsscomp_mgr_callback,
@@ -518,6 +530,9 @@ int dsscomp_apply(dsscomp_t comp)
 		.mask = DSS_COMPLETION_DISPLAYED |
 		DSS_COMPLETION_PROGRAMMED | DSS_COMPLETION_RELEASED,
 	};
+	/* current WB output buffer address- matches ping or pong */
+	unsigned long wb_output_buf_pa = 0;
+
 
 	BUG_ON(comp->state != DSSCOMP_STATE_APPLYING);
 
@@ -541,9 +556,47 @@ int dsscomp_apply(dsscomp_t comp)
 
 	r = 0;
 	dmask = 0;
+
+	previous_state = &(cdev->previous_comp_state);
+	current_state = comp->composition_mode;
+
+	if ((*previous_state == DSSCOMP_WB_M2M_ROW_INTERLEAVED) &&
+			(current_state == DSSCOMP_NORMAL_COMPOSITION)) {
+		/* Connect overlays to their original manager (from WB source
+		 * manager).
+		 */
+		connect_back_forced_ovls(comp,
+				cdev->s3d_comp_data->wb_source_mgr,
+				cdev->s3d_comp_data->wb_dest_mgr, DEV(cdev));
+
+		/* Free allocations done for S3D. Unregister callbacks
+		 * registered for WB framedone.
+		 */
+		s3d_reset_to_mono(&(cdev->s3d_comp_data));
+	}
+
+	if (comp->composition_mode == DSSCOMP_WB_M2M_ROW_INTERLEAVED) {
+		/* Initialize s3d_comp_data, find the source and destination
+		 * managers for S3D WB, configure and apply WB parameters.
+		 */
+		r = s3d_wb_init(DEV(cdev), &(cdev->s3d_comp_data), wb,
+				cdev->num_displays, cdev->num_mgrs,
+				cdev->displays, *previous_state,
+				comp->composition_mode,
+				&wb_output_buf_pa, mgr);
+		if (r) {
+			dev_err(DEV(cdev), "s3d_wb_init returned %d\n", r);
+			return -ENOMEM;
+		}
+	}
+
 	for (oix = 0; oix < comp->frm.num_ovls; oix++) {
 		struct dss2_ovl_info *oi = comp->ovls + oix;
 
+		if (comp->composition_mode == DSSCOMP_WB_M2M_ROW_INTERLEAVED) {
+			if (oi->cfg.ix == OMAP_DSS_GFX)
+				oi->cfg.enabled = false;
+		}
 		/* keep track of disabled overlays */
 		if (!oi->cfg.enabled)
 			dmask |= 1 << oi->cfg.ix;
@@ -578,38 +631,52 @@ int dsscomp_apply(dsscomp_t comp)
 		} else {
 			ovl = cdev->ovls[oi->cfg.ix];
 
-			/* set overlays' manager & info */
-			if (ovl->info.enabled && ovl->manager != mgr) {
-				r = -EBUSY;
-				goto skip_ovl_set;
-			}
-			if (ovl->manager != mgr) {
-				mutex_lock(&mtx);
-				if (!mgrq[comp->ix].blanking) {
-					/*
-					 * Ideally, we should call
-					 * ovl->unset_manager(ovl),
-					 * but it may block on go
-					 * even though the disabling
-					 * of the overlay already
-					 * went through. So instead,
-					 * we are just clearing the manager.
+			/* The manager checks are not to be done in
+			 * case of special ROW_INTERLEAVED composition.
+			 */
+			if (comp->composition_mode !=
+					DSSCOMP_WB_M2M_ROW_INTERLEAVED) {
+				/* set overlays' manager & info */
+				if (ovl->info.enabled && ovl->manager != mgr) {
+					r = -EBUSY;
+					goto skip_ovl_set;
+				}
+				if (ovl->manager != mgr) {
+					/* Ideally, we should call
+					 * ovl->unset_manager(ovl), but it may
+					 * block on go even though the disabling
+					 * of the overlay already went through.
+					 * So instead, we are just clearing
+					 * the manager.
 					 */
 					ovl->manager = NULL;
 					r = ovl->set_manager(ovl, mgr);
-				} else	{
-					/* Ignoring manager change
-					during blanking. */
-					pr_info_ratelimited("dsscomp_apply "
-						"skip set_manager(%s) for "
-						"ovl%d while blank."
-						, mgr->name, oi->cfg.ix);
-					r = -ENODEV;
+					if (r)
+						goto skip_ovl_set;
 				}
-				mutex_unlock(&mtx);
-
-				if (r)
-					goto skip_ovl_set;
+			}
+			if (comp->composition_mode ==
+					DSSCOMP_WB_M2M_ROW_INTERLEAVED) {
+				/* In case of DSSCOMP_WB_M2M_ROW_INTERLEAVED
+				 * composition, all 2D layers are scaled to
+				 * half the size. Then each row of the 2D layer
+				 * is replicated to make the left and right
+				 * views of the 2D layer the same. This is to
+				 * reduce aliasing artifacts for 2D layers on
+				 * 3D display. For 3D layers, each of the view
+				 * provides half the height worth of data. Hence
+				 * we halve win.h for both 2D and 3D layers.
+				 */
+				oi->cfg.win.h = oi->cfg.win.h/2;
+				oi->cfg.win.y = oi->cfg.win.y/2;
+				if (oi->cfg.s3d_content) {
+					cdev->s3d_comp_data->crop_coords =
+					    s3d_set_crop_coords(oi, dssdev,
+							    DEV(cdev), 1);
+					if (cdev->s3d_comp_data->crop_coords
+							< 0)
+						return -EINVAL;
+				}
 			}
 			r = set_dss_ovl_info(oi);
 		}
@@ -712,7 +779,29 @@ skip_ovl_set:
 			if (r)
 				dev_err(DEV(cdev),
 					"omap_dss_wb_apply failed %d", r);
-		}
+			r = mgr->apply(mgr);
+			if (r)
+				dev_err(DEV(cdev),
+					"failed while applying %d", r);
+			/* keep error if set_mgr_info failed */
+			if (!r && !cb_programmed)
+				r = -EINVAL;
+		} else if (comp->composition_mode ==
+				DSSCOMP_WB_M2M_ROW_INTERLEAVED) {
+			r = s3d_wb_pass1(&(cdev->s3d_comp_data), cdev->wb_ovl,
+					DEV(cdev));
+			if (r)
+				return r;
+		} else {
+			if ((*previous_state == DSSCOMP_WB_M2M_ROW_INTERLEAVED)
+				&& (current_state ==
+					DSSCOMP_BLANKING_COMPOSITION)) {
+				/* 3D to blanking transition */
+				apply_turnoff_ovls_on_wb_src_mgr(
+					cdev->s3d_comp_data,
+					cdev->s3d_comp_data->wb_source_mgr,
+					cdev->s3d_comp_data->wb_dest_mgr);
+			}
 #if defined(CONFIG_MACH_LGE_COSMO_3D_DISPLAY) //##hwcho_20120522
 		//s3d display handling
 		if ( comp->frm.mgr.s3d_disp_info.type!=S3D_DISP_NONE )
@@ -795,13 +884,39 @@ skip_ovl_set:
 				 */
 				r = 0;
 			}
-		}
-		else
+		} else {
+			if (comp->composition_mode ==
+					DSSCOMP_WB_M2M_ROW_INTERLEAVED) {
+				/* Configure GFX pipeline and destination
+				 * manager to display WB output.
+				 */
+				configure_display_wb_output(wb_output_buf_pa,
+					wb->width, wb->height,
+					cdev->s3d_comp_data->wb_dest_mgr,
+					DEV(cdev));
+
+				/* Configure and initiate pass 2 of WB */
+				r = s3d_wb_pass2(&(cdev->s3d_comp_data),
+						comp, wb, cdev->wb_ovl,
+						wb_output_buf_pa, DEV(cdev));
+
+				/* Since WB is automatically turned off in
+				 * mem-to-mem mode, reflect it in wb info
+				 * structure.
+				 */
+				wb->info.enabled = false;
+				omap_dss_wb_apply(mgr, wb);
+
+				if (r)
+					return r;
+			}
 			/* wait for sync to do smooth animations */
 			mgr->wait_for_vsync(mgr);
+		}
 	}
 
 done:
+	*previous_state = current_state;
 	log_event(20*comp->ix + 20, 0, comp, "dsscomp_apply done", 0, 0);
 	return r;
 }

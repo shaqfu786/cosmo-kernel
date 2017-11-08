@@ -67,6 +67,10 @@ struct dsscomp_dev {
 	u32 num_displays;
 	struct omap_dss_device *displays[MAX_DISPLAYS];
 	struct notifier_block state_notifiers[MAX_DISPLAYS];
+	/*composition state- normal, blank, WB interleaved */
+	int previous_comp_state;
+	/* S3D WB composition specific parameters and state variables */
+	struct s3d_composition_data *s3d_comp_data;
 };
 
 extern int debug;
@@ -93,7 +97,8 @@ enum dsscomp_state {
 
 struct dsscomp_data {
 	enum dsscomp_state state;
-	/*
+	enum dsscomp_composition_mode composition_mode;
+/*
 	 * :TRICKY: before applying, overlays used in a composition are stored
 	 * in ovl_mask and the other masks are empty.  Once composition is
 	 * applied, blank is set to see if all overlays are to be disabled on
@@ -145,6 +150,9 @@ int dsscomp_state_notifier(struct notifier_block *nb,
 /* basic operation - if not using queues */
 int set_dss_ovl_info(struct dss2_ovl_info *oi);
 int set_dss_wb_info(struct dss2_ovl_info *oi);
+int set_dss_wb_params(const struct dss2_wb_params *wb_params,
+	struct omap_overlay_manager *manager);
+void dss_wb_framedone_cb(void *data, u32 mask);
 int set_dss_mgr_info(struct dss2_mgr_info *mi, struct omapdss_ovl_cb *cb);
 struct omap_overlay_manager *find_dss_mgr(int display_ix);
 void swap_rb_in_ovl_info(struct dss2_ovl_info *oi);
@@ -176,6 +184,8 @@ void dsscomp_dbg_gralloc(struct seq_file *s);
   */
 int omap_dss_wb_apply(struct omap_overlay_manager *mgr,
 	struct omap_writeback *wb);
+/* functions required for WB mem-to-mem interleaved mode */
+int dispc_enable_plane(enum omap_plane plane, bool enable);
 
 #define log_state_str(s) (\
 	(s) == DSSCOMP_STATE_ACTIVE		? "ACTIVE"	: \

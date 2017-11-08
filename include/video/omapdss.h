@@ -579,6 +579,7 @@ struct omap_writeback_info {
 	u16					height;
 	u16					out_width;
 	u16					out_height;
+	u16					line_skip;
 	enum omap_color_mode			dss_mode;
 	enum omap_writeback_capturemode		capturemode;
 	/* capture or mem2mem mode */

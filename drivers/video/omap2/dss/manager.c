@@ -2276,6 +2276,8 @@ int omap_dss_wb_apply(struct omap_overlay_manager *mgr,
 		wbc->width = wb->info.width;
 		wbc->height = wb->info.height;
 
+		wbc->line_skip = wb->info.line_skip;
+
 		wbc->paddr = wb->info.paddr;
 		wbc->p_uv_addr = wb->info.p_uv_addr;
 
@@ -2303,14 +2305,15 @@ int omap_dss_wb_apply(struct omap_overlay_manager *mgr,
 		wbc->shadow_dirty = false;
 	}
 
-	/* In case of MEM2MEM, don't kick-in the configurations yet.
-	 * Just configure the WB.
-	 */
-	if (wb->info.mode == OMAP_WB_MEM2MEM_MODE)
-		r = configure_wb_overlay();
-	else
-		r = configure_dispc();
-
+	if (wbc && wbc->enabled) {
+		/* In case of MEM2MEM, don't kick-in the configurations yet.
+		 * Just configure the WB.
+		*/
+		if (wb->info.mode == OMAP_WB_MEM2MEM_MODE)
+			r = configure_wb_overlay();
+		else
+			r = configure_dispc();
+	}
 
 	spin_unlock_irqrestore(&dss_cache.lock, flags);
 	return r;

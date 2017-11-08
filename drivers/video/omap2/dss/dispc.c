@@ -2761,6 +2761,29 @@ int dispc_setup_wb(struct writeback_cache_data *wb)
 		_dispc_set_plane_ba1_uv(plane, puv_addr + offset1);
 	}
 
+	/* When WB requests line skip, the next row to be written will not go
+	 * into the next row in sequence, but skips the consecutive row, and
+	 * writes into the row that follows the next. This is required in cases
+	 * like S3D, where WB is used for interleaving left and right view data.
+	 */
+	if (wb->line_skip) {
+		int str = 0;
+
+		/* If this is a tiler buffer, get the correct stride. */
+		if ((paddr >= 0x60000000) && (paddr <= 0x7fffffff)) {
+			struct tiler_block_t tb;
+
+			tb.phys = paddr;
+			str = tiler_pstride(&tb);
+		}
+
+		if (str)
+			row_inc = 1 + str;
+		else
+			row_inc = 1
+				+ wb->width * color_mode_to_bpp(color_mode) / 8;
+	}
+
 	_dispc_set_rotation_attrs(plane, rotation, mirror,
 				color_mode, wb->rotation_type);
 

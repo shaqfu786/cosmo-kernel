@@ -227,6 +227,7 @@ struct writeback_cache_data {
 	u16 out_height;
 	u16 width;
 	u16 height;
+	u16 line_skip;
 	u32	fifo_low;
 	u32	fifo_high;
 	enum omap_color_mode			color_mode;

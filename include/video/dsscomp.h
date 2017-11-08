@@ -437,6 +437,21 @@ struct dss2_ovl_info {
 	};
 };
 
+struct dss2_wb_params {
+	bool enable;
+	int wb_mode; /* Capture or mem2mem */
+	enum omap_writeback_source		source;
+	/* size */
+	int width;
+	int height;
+	struct omap_dss_cconv_coefs cconv;
+	enum omap_color_mode color_mode;
+	/* Output buffer related */
+	unsigned long output_buf_pa;
+	unsigned long p_uv_addr;
+	unsigned char line_skip;
+};
+
 /*
  * DSS2 manager information.
  *
@@ -467,9 +482,9 @@ struct dss2_mgr_info {
 	__u8 alpha_blending;	/* bool - overrides trans_enabled */
 	__u8 cpr_enabled;	/* bool */
 	__u8 swap_rb;		/* bool - swap red and blue */
-#if defined(CONFIG_MACH_LGE_COSMO_3D_DISPLAY) //##hwcho_20120522
-	struct s3d_disp_info s3d_disp_info;	/*Display info should be set in HWC */
-#endif //##
+//#if defined(CONFIG_MACH_LGE_COSMO_3D_DISPLAY) //##hwcho_20120522
+//	struct s3d_disp_info s3d_disp_info;	/*Display info should be set in HWC */
+//#endif //##
 } __attribute__ ((aligned(4)));
 
 /*

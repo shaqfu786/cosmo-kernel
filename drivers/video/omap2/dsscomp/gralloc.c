@@ -472,6 +472,28 @@ int dsscomp_gralloc_queue(struct dsscomp_setup_dispc_data *d,
 			dev_err(DEV(cdev), "failed to set mgr%d (%d)\n", ch, r);
 	}
 
+	/* Mark the composition_mode for all compositions */
+	for (ch = 0; ch < MAX_MANAGERS; ch++) {
+		if (!comp[ch])
+			continue;
+
+		if (d->composition_mode == DSSCOMP_WB_M2M_ROW_INTERLEAVED) {
+			comp[ch]->composition_mode
+				= DSSCOMP_WB_M2M_ROW_INTERLEAVED;
+		} else if (d->composition_mode == DSSCOMP_NORMAL_COMPOSITION) {
+			comp[ch]->composition_mode
+				= DSSCOMP_NORMAL_COMPOSITION;
+		} else if (d->composition_mode ==
+				DSSCOMP_BLANKING_COMPOSITION) {
+			comp[ch]->composition_mode
+				= DSSCOMP_BLANKING_COMPOSITION;
+		} else {
+			comp[ch]->composition_mode
+				= DSSCOMP_NORMAL_COMPOSITION;
+			dev_err(DEV(cdev), "Unknown composition_mode\n");
+		}
+	}
+
 	/* NOTE: none of the dsscomp sets should fail as composition is new */
 	for (i = 0; i < d->num_ovls; i++) {
 		struct dss2_ovl_info *oi = d->ovls + i;
