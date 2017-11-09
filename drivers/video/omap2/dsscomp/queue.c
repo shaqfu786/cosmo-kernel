@@ -518,6 +518,7 @@ int dsscomp_apply(dsscomp_t comp)
 	struct omap_overlay_manager *mgr;
 	struct omap_overlay *ovl;
 	struct dsscomp_setup_mgr_data *d;
+        struct dsscomp_display_info *info;
 	u32 oix;
 	bool cb_programmed = false;
 	bool wb_apply = false;
@@ -804,9 +805,9 @@ skip_ovl_set:
 			}
 #if defined(CONFIG_MACH_LGE_COSMO_3D_DISPLAY) //##hwcho_20120522
 		//s3d display handling
-		if ( comp->frm.mgr.s3d_disp_info.type!=S3D_DISP_NONE )
+		if ( info->s3d_info.type!=S3D_DISP_NONE )
 		{
-			if ( comp->frm.mgr.s3d_disp_info.type!=S3D_DISP_DECISION_IN_DSSCOMP)
+			if ( info->s3d_info.type!=S3D_DISP_DECISION_IN_DSSCOMP)
 			{
 				//no need set type
 				if ( mgr->device!=NULL && mgr->device->driver!=NULL
@@ -816,7 +817,7 @@ skip_ovl_set:
 				        if ( mgr->device->driver->set_s3d_disp_type)  //mo2sanghyun.lee type setting
                                         {      
 //                                                printk(KERN_INFO"set_s3d_disp_type \n");
-                                                mgr->device->driver->set_s3d_disp_type(mgr->device, &comp->frm.mgr.s3d_disp_info);
+                                                mgr->device->driver->set_s3d_disp_type(mgr->device, &info->s3d_info);
                                         }
 
 					if ( !mgr->device->driver->get_s3d_enabled(mgr->device) )

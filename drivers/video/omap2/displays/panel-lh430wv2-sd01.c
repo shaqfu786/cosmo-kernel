@@ -136,6 +136,8 @@ struct panel_config {
 		unsigned int low;
 	} reset_sequence;
 
+	struct s3d_disp_info s3d_info;
+
 	struct panel_regulator *regulators;
 	int num_regulators;
 };
@@ -167,6 +169,12 @@ static struct panel_config panel_configs[] = {
 		.reset_sequence	= {
 			.high		= 10000,
 			.low		= 10000,
+		},
+		.s3d_info = {
+			.type		= S3D_DISP_ROW_IL,
+			.sub_samp	= S3D_DISP_SUB_SAMPLE_NONE,
+			.order		= S3D_DISP_VIEW_L,
+			.gap		= 0,
 		},
 	},
 };
@@ -2351,6 +2359,16 @@ static bool lh430wv2_panel_get_s3d_enabled(struct omap_dss_device *dssdev)
 	return td->barrier_enabled;
 }
 
+int lh430wv2_panel_get_s3d_disp_type(struct omap_dss_device *dssdev)
+{
+	return dssdev->panel.s3d_info.type;
+}
+
+int lh430wv2_panel_get_s3d_disp_order(struct omap_dss_device *dssdev)
+{
+	return dssdev->panel.s3d_info.order;
+}
+
 static struct omap_dss_driver lh430wv2_panel_driver = {
 	.probe		= lh430wv2_panel_probe,
 	.remove		= __exit_p(lh430wv2_panel_remove),
@@ -2381,6 +2399,8 @@ static struct omap_dss_driver lh430wv2_panel_driver = {
 	.get_timings	= lh430wv2_panel_get_timings,
 	.enable_s3d 	 = lh430wv2_panel_enable_s3d,
 	.get_s3d_enabled = lh430wv2_panel_get_s3d_enabled,
+	.get_s3d_disp_type = lh430wv2_panel_get_s3d_disp_type,
+	.get_s3d_disp_order = lh430wv2_panel_get_s3d_disp_order,
 	.driver         = {
 		.name 	= "lh430wv2_panel",
 		.owner  = THIS_MODULE,

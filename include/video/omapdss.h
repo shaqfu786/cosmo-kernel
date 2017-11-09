@@ -767,6 +767,7 @@ struct omap_dss_device {
 		int acb;	/* ac-bias pin frequency */
 
 		enum omap_panel_config config;
+		struct s3d_disp_info s3d_info;
 		struct fb_monspecs monspecs;
 
 		u32 width_in_um;
@@ -888,8 +889,13 @@ struct omap_dss_driver {
 /*Some displays may accept multiple 3D packing formats (like HDMI)
  *hence we add capability to choose the most optimal one given a source
  *Returns non-zero if the type was not supported*/
-	int (*set_s3d_disp_type)(struct omap_dss_device *dssdev, struct s3d_disp_info *info);
-	int (*get_s3d_disp_type)(struct omap_dss_device *dssdev, struct s3d_disp_info *info);
+	int (*set_s3d_disp_info)(struct omap_dss_device *dssdev,
+			struct s3d_disp_info *info);
+	int (*set_s3d_disp_type)(struct omap_dss_device *dssdev,
+			enum s3d_disp_type type);
+	int (*get_s3d_disp_type)(struct omap_dss_device *dssdev);
+	int (*get_s3d_disp_order)(struct omap_dss_device *dssdev);
+	int (*set_s3d_disp_order)(struct omap_dss_device *dssdev);
 //                                                                           
 	void (*get_edid_realtime)(struct omap_dss_device *dssdev,
 		struct omap_video_timings *timings);

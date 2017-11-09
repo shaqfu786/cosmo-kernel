@@ -1310,7 +1310,7 @@ static int lambda_rsbs_to_il_op(struct lambda_list_t *lambda)
  */
 static struct lambda_list_t* lambda_rsbs_to_il_factory
 		(struct dss2_ovl_info *oi, struct adapt_buf_list_t **ret_buf_list,
-		 struct dss2_mgr_info *mgr)
+		 struct dss2_mgr_info *mgr, struct dsscomp_display_info *info)
 {
 	struct adapt_lambda_opd_t *src=NULL, *dst=NULL;
 	struct adapt_buf_t *dst_buf;
@@ -1370,7 +1370,7 @@ static struct lambda_list_t* lambda_rsbs_to_il_factory
 	lambda_IL->lambda.src	= src;
 	lambda_IL->lambda.dst	= dst;
 
-	if ( mgr->s3d_disp_info.order==S3D_DISP_ORDER_R)
+	if ( info->s3d_info.order==S3D_DISP_ORDER_R)
 	{
 		if ( oi->cfg.s3d_rotation==1 )	//90
 			lambda_IL->left_first = false;
@@ -1882,7 +1882,7 @@ extern struct omap_overlay_manager *find_dss_mgr(int display_ix);
  */
 static struct lambda_list_t* lambda_s3d_to_ril_op_factory
 	(struct dss2_ovl_info* oi, struct adapt_buf_list_t **ret_buf_list,
-			struct dss2_mgr_info *mgr)
+			struct dss2_mgr_info *mgr, struct dsscomp_display_info *info)
 {
 	struct adapt_lambda_opd_t *src=NULL, *dst=NULL;
 	struct adapt_buf_t *dst_buf;
@@ -1982,13 +1982,13 @@ static struct lambda_list_t* lambda_s3d_to_ril_op_factory
 	lambda_s3d->lambda.description = "Converting S3D to rotated and scaled interleaved";
 	lambda_s3d->lambda.src	= src;
 	lambda_s3d->lambda.dst	= dst;
-	lambda_s3d->lambda.depth = mgr->s3d_disp_info.gap;	//                      
+	lambda_s3d->lambda.depth = info->s3d_info.gap;	//                      
 	lambda_s3d->rotation	= oi->cfg.rotation;
 	lambda_s3d->s3d_type	= oi->cfg.s3d_input_layout_type;
 //	lambda_s3d->s3d_type	= S3D_TOP_BOTTOM;
 	lambda_s3d->s3d_order	= oi->cfg.s3d_input_layout_order;
 
-	if ( mgr->s3d_disp_info.order==S3D_DISP_ORDER_R)
+	if ( info->s3d_info.order==S3D_DISP_ORDER_R)
 	{
 		if ( oi->cfg.rotation==1 )	//90
 			lambda_s3d->left_to_even = false;
@@ -2135,7 +2135,7 @@ static int lambda_rsbs_to_rtb_op(struct lambda_list_t *lambda)
  * Allocating tiler and making lambda copying in rotated top bottom
  */
 static struct lambda_list_t* lambda_rsbs_to_rtb_factory
-		(struct dss2_ovl_info *oi, struct adapt_buf_list_t **ret_buf_list, struct dss2_mgr_info *mgr)
+		(struct dss2_ovl_info *oi, struct adapt_buf_list_t **ret_buf_list, struct dss2_mgr_info *mgr, struct dsscomp_display_info *info)
 {
 	struct adapt_lambda_opd_t *src=NULL, *dst=NULL;
 	struct adapt_buf_t *dst_buf;
@@ -2179,9 +2179,9 @@ static struct lambda_list_t* lambda_rsbs_to_rtb_factory
 	lambda_rtb->lambda.opt = lambda_rsbs_to_rtb_op;
 	lambda_rtb->lambda.src = src;
 	lambda_rtb->lambda.dst = dst;
-	lambda_rtb->reverse = oi->cfg.s3d_input_layout_order != mgr->s3d_disp_info.order;
+	lambda_rtb->reverse = oi->cfg.s3d_input_layout_order != info->s3d_info.order;
 	DBG_PRINTK("Reverse:%d, input s3d order:%d, display s3d order:%d\n",
-			lambda_rtb->reverse, oi->cfg.s3d_input_layout_order, mgr->s3d_disp_info.order);
+			lambda_rtb->reverse, oi->cfg.s3d_input_layout_order, info->s3d_info.order);
 
 	//change oi info
 	DBG_PRINTK("oi->ba 0x%x->0x%x\n",oi->ba, dst->paddr);
@@ -2395,7 +2395,7 @@ void dsscomp_adapt_free(struct dsscomp_adapt_info *adapt_info)
  */
 struct dsscomp_adapt_info* dsscomp_adapt_need(struct dsscomp_adapt_info* adapt_info,
 		struct dss2_ovl_info *oi, struct dss2_mgr_info *mgr_info,
-		struct dss2_ovl_info *oi_ret)
+		struct dss2_ovl_info *oi_ret, struct dsscomp_display_info *disp_info)
 {
 	struct adapt_buf_list_t* new_buffer = NULL;
 	struct lambda_list_t* lambda = NULL;
@@ -2414,25 +2414,25 @@ struct dsscomp_adapt_info* dsscomp_adapt_need(struct dsscomp_adapt_info* adapt_i
 		//rotated side by side
 		DBG_PRINTK("s3d type :%d, color mode:%d, ovl_ix:%d, mgr_ix=%d  mgr_type:%d\n",
 				oi->cfg.s3d_input_layout_type, oi->cfg.color_mode, oi->cfg.ix,
-				oi->cfg.mgr_ix,mgr_info->s3d_disp_info.type);
+				oi->cfg.mgr_ix,disp_info->s3d_info.type);
 		//rotated Side-by-Side to Rotated top bottom
 		if ( (oi->cfg.s3d_rotation==1 || oi->cfg.s3d_rotation==3) && oi->cfg.s3d_input_layout_type==S3D_SIDE_BY_SIDE
-				&& mgr_info->s3d_disp_info.type==S3D_TOP_BOTTOM
+				&& disp_info->s3d_info.type==S3D_TOP_BOTTOM
 				)
 		{
 			*oi_ret = *oi;
-			lambda = lambda_rsbs_to_rtb_factory(oi_ret, &new_buffer, mgr_info);
+			lambda = lambda_rsbs_to_rtb_factory(oi_ret, &new_buffer, mgr_info, disp_info);
 		}
 		//Rotated Side-by-Side to ROW Interleaved
 		else if ( oi->cfg.s3d_input_layout_type==S3D_SIDE_BY_SIDE					//Side By Side
 				&& oi->cfg.ix==0 && oi->cfg.color_mode!= OMAP_DSS_COLOR_NV12	//GFX Layer output
 				&& (oi->cfg.s3d_rotation==1 || oi->cfg.s3d_rotation==3)			//90 or 270
-				&& mgr_info->s3d_disp_info.type==S3D_ROW_INTERLEAVED					//output is interleaved
+				&& disp_info->s3d_info.type==S3D_ROW_INTERLEAVED					//output is interleaved
 			)
 		{
 			//making IL conversion lambda
 			*oi_ret = *oi;
-			lambda = lambda_rsbs_to_il_factory(oi_ret, &new_buffer, mgr_info);
+			lambda = lambda_rsbs_to_il_factory(oi_ret, &new_buffer, mgr_info, disp_info);
 		}
 
 
@@ -2447,12 +2447,12 @@ struct dsscomp_adapt_info* dsscomp_adapt_need(struct dsscomp_adapt_info* adapt_i
 		else if ( (oi->cfg.s3d_input_layout_type==S3D_SIDE_BY_SIDE || oi->cfg.s3d_input_layout_type==S3D_TOP_BOTTOM) //S3D
 					&& oi->cfg.ix!=0			//not gfx layer
 					&& (oi->cfg.rotation==1 || oi->cfg.rotation==3)	//90 or 270 degree
-					&& mgr_info->s3d_disp_info.type==S3D_ROW_INTERLEAVED	//output is interleaved
+					&& disp_info->s3d_info.type==S3D_ROW_INTERLEAVED	//output is interleaved
 				)
 		{
 			//making rotated IL lambda
 			*oi_ret = *oi;
-			lambda = lambda_s3d_to_ril_op_factory(oi_ret, &new_buffer, mgr_info);
+			lambda = lambda_s3d_to_ril_op_factory(oi_ret, &new_buffer, mgr_info, disp_info);
 		}
 
 		if ( lambda!=NULL )

@@ -292,6 +292,84 @@ static ssize_t display_wss_store(struct device *dev,
 	return size;
 }
 
+static ssize_t display_s3d_enabled_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	struct omap_dss_device *dssdev = to_dss_device(dev);
+
+	return snprintf(buf, PAGE_SIZE, "%d\n",
+			dssdev->driver->get_s3d_enabled ?
+			dssdev->driver->get_s3d_enabled(dssdev) : 0);
+}
+
+static ssize_t display_s3d_enabled_store(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t size)
+{
+	struct omap_dss_device *dssdev = to_dss_device(dev);
+	int s3d_enabled;
+	int r;
+
+	if (!dssdev->driver->get_s3d_enabled || !dssdev->driver->enable_s3d)
+		return -ENOENT;
+
+	r = kstrtoint(buf, 0, &s3d_enabled);
+	if (r)
+		return r;
+
+	s3d_enabled = !!s3d_enabled;
+
+	r = dssdev->driver->enable_s3d(dssdev, s3d_enabled);
+	if (r)
+		return r;
+
+	return size;
+}
+static ssize_t display_s3d_type_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	struct omap_dss_device *dssdev = to_dss_device(dev);
+
+	return snprintf(buf, PAGE_SIZE, "%d\n",
+			dssdev->driver->get_s3d_disp_type ?
+			dssdev->driver->get_s3d_disp_type(dssdev) : 0);
+}
+
+static ssize_t display_s3d_type_store(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t size)
+{
+	struct omap_dss_device *dssdev = to_dss_device(dev);
+	int s3d_type;
+	int r;
+
+	if (!dssdev->driver->get_s3d_disp_type
+					|| !dssdev->driver->set_s3d_disp_type)
+		return 0;
+
+	r = kstrtoint(buf, 0, &s3d_type);
+	if (r)
+		return r;
+
+	r = dssdev->driver->set_s3d_disp_type(dssdev, s3d_type);
+	if (r)
+		return r;
+
+	return size;
+}
+static ssize_t display_s3d_order_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	struct omap_dss_device *dssdev = to_dss_device(dev);
+
+	return snprintf(buf, PAGE_SIZE, "%d\n",
+			dssdev->driver->get_s3d_disp_order ?
+			dssdev->driver->get_s3d_disp_order(dssdev) : 0);
+}
+
+static ssize_t display_s3d_order_store(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t size)
+{
+		return -ENOENT;
+}
 static DEVICE_ATTR(enabled, S_IRUGO|S_IWUSR,
 		display_enabled_show, display_enabled_store);
 static DEVICE_ATTR(update_mode, S_IRUGO|S_IWUSR,
@@ -306,6 +384,13 @@ static DEVICE_ATTR(mirror, S_IRUGO|S_IWUSR,
 		display_mirror_show, display_mirror_store);
 static DEVICE_ATTR(wss, S_IRUGO|S_IWUSR,
 		display_wss_show, display_wss_store);
+
+static DEVICE_ATTR(s3d_enable, S_IRUGO|S_IWUSR,
+		display_s3d_enabled_show, display_s3d_enabled_store);
+static DEVICE_ATTR(s3d_type, S_IRUGO|S_IWUSR,
+		display_s3d_type_show, display_s3d_type_store);
+static DEVICE_ATTR(s3d_order, S_IRUGO|S_IWUSR,
+		display_s3d_order_show, display_s3d_order_store);
 
 static struct device_attribute *display_sysfs_attrs[] = {
 	&dev_attr_enabled,
