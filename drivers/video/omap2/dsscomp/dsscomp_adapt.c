@@ -1310,7 +1310,8 @@ static int lambda_rsbs_to_il_op(struct lambda_list_t *lambda)
  */
 static struct lambda_list_t* lambda_rsbs_to_il_factory
 		(struct dss2_ovl_info *oi, struct adapt_buf_list_t **ret_buf_list,
-		 struct dss2_mgr_info *mgr, struct dsscomp_display_info *info)
+		 //struct dss2_mgr_info *mgr, 
+                 struct dsscomp_display_info *info)
 {
 	struct adapt_lambda_opd_t *src=NULL, *dst=NULL;
 	struct adapt_buf_t *dst_buf;
@@ -1882,7 +1883,8 @@ extern struct omap_overlay_manager *find_dss_mgr(int display_ix);
  */
 static struct lambda_list_t* lambda_s3d_to_ril_op_factory
 	(struct dss2_ovl_info* oi, struct adapt_buf_list_t **ret_buf_list,
-			struct dss2_mgr_info *mgr, struct dsscomp_display_info *info)
+			//struct dss2_mgr_info *mgr,
+                        struct dsscomp_display_info *info)
 {
 	struct adapt_lambda_opd_t *src=NULL, *dst=NULL;
 	struct adapt_buf_t *dst_buf;
@@ -1902,7 +1904,7 @@ static struct lambda_list_t* lambda_s3d_to_ril_op_factory
 			DBG_PRINTK("Window Position is out of screen(%d,%d), stop converting\n", win.x, win.y);
 			return NULL;
 		}
-		mgr_info = find_dss_mgr(mgr->ix);
+		mgr_info = find_dss_mgr(info->mgr.ix);
 		if ( mgr_info==NULL || mgr_info->device==NULL )
 		{
 			DBG_PRINTK("Magaer's device is not connected, stop converting\n");
@@ -2135,7 +2137,7 @@ static int lambda_rsbs_to_rtb_op(struct lambda_list_t *lambda)
  * Allocating tiler and making lambda copying in rotated top bottom
  */
 static struct lambda_list_t* lambda_rsbs_to_rtb_factory
-		(struct dss2_ovl_info *oi, struct adapt_buf_list_t **ret_buf_list, struct dss2_mgr_info *mgr, struct dsscomp_display_info *info)
+		(struct dss2_ovl_info *oi, struct adapt_buf_list_t **ret_buf_list, struct dsscomp_display_info *info)
 {
 	struct adapt_lambda_opd_t *src=NULL, *dst=NULL;
 	struct adapt_buf_t *dst_buf;
@@ -2394,7 +2396,7 @@ void dsscomp_adapt_free(struct dsscomp_adapt_info *adapt_info)
  * Check adaptation is needed and accumulate
  */
 struct dsscomp_adapt_info* dsscomp_adapt_need(struct dsscomp_adapt_info* adapt_info,
-		struct dss2_ovl_info *oi, struct dss2_mgr_info *mgr_info,
+		struct dss2_ovl_info *oi, //struct dss2_mgr_info *mgr_info,
 		struct dss2_ovl_info *oi_ret, struct dsscomp_display_info *disp_info)
 {
 	struct adapt_buf_list_t* new_buffer = NULL;
@@ -2421,7 +2423,7 @@ struct dsscomp_adapt_info* dsscomp_adapt_need(struct dsscomp_adapt_info* adapt_i
 				)
 		{
 			*oi_ret = *oi;
-			lambda = lambda_rsbs_to_rtb_factory(oi_ret, &new_buffer, mgr_info, disp_info);
+			lambda = lambda_rsbs_to_rtb_factory(oi_ret, &new_buffer, disp_info);
 		}
 		//Rotated Side-by-Side to ROW Interleaved
 		else if ( oi->cfg.s3d_input_layout_type==S3D_SIDE_BY_SIDE					//Side By Side
@@ -2432,7 +2434,7 @@ struct dsscomp_adapt_info* dsscomp_adapt_need(struct dsscomp_adapt_info* adapt_i
 		{
 			//making IL conversion lambda
 			*oi_ret = *oi;
-			lambda = lambda_rsbs_to_il_factory(oi_ret, &new_buffer, mgr_info, disp_info);
+			lambda = lambda_rsbs_to_il_factory(oi_ret, &new_buffer, disp_info);
 		}
 
 
@@ -2452,7 +2454,7 @@ struct dsscomp_adapt_info* dsscomp_adapt_need(struct dsscomp_adapt_info* adapt_i
 		{
 			//making rotated IL lambda
 			*oi_ret = *oi;
-			lambda = lambda_s3d_to_ril_op_factory(oi_ret, &new_buffer, mgr_info, disp_info);
+			lambda = lambda_s3d_to_ril_op_factory(oi_ret, &new_buffer, disp_info);
 		}
 
 		if ( lambda!=NULL )

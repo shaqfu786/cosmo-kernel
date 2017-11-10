@@ -521,6 +521,7 @@ int dsscomp_apply(dsscomp_t comp)
         struct dsscomp_display_info *info;
 	u32 oix;
 	bool cb_programmed = false;
+	struct omap_writeback *wb = cdev->wb_ovl;
 	bool wb_apply = false;
 	int *previous_state = NULL;
 	int current_state = -1;
@@ -803,7 +804,7 @@ skip_ovl_set:
 					cdev->s3d_comp_data->wb_source_mgr,
 					cdev->s3d_comp_data->wb_dest_mgr);
 			}
-#if defined(CONFIG_MACH_LGE_COSMO_3D_DISPLAY) //##hwcho_20120522
+/*#if defined(CONFIG_MACH_LGE_COSMO_3D_DISPLAY) //##hwcho_20120522
 		//s3d display handling
 		if ( info->s3d_info.type!=S3D_DISP_NONE )
 		{
@@ -844,13 +845,14 @@ skip_ovl_set:
 				}
 			}
 		}
-#endif
+#endif*/
 		r = mgr->apply(mgr);
 		if (r)
 			dev_err(DEV(cdev), "failed while applying %d", r);
 		/* keep error if set_mgr_info failed */
 		if (!r && !cb_programmed)
 			r = -EINVAL;
+		}
 	}
 	mutex_unlock(&mtx);
 

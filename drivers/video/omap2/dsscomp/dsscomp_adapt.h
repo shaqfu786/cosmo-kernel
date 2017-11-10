@@ -8,8 +8,8 @@ int dsscomp_adapt_init(struct dsscomp_dev *cdev_);
 void dsscomp_adapt_deinit(void);
 
 struct dsscomp_adapt_info* dsscomp_adapt_need(struct dsscomp_adapt_info* adapt_ino,
-		struct dss2_ovl_info *oi, struct dss2_mgr_info *mgr,
-		struct dss2_ovl_info *oi_ret);
+		struct dss2_ovl_info *oi,// struct dss2_mgr_info *mgr,
+		struct dss2_ovl_info *oi_ret, struct dsscomp_display_info *info);
 void dsscomp_adapt_start_process(struct dsscomp_adapt_info* adapt_ino);
 int dsscomp_adapt_wait_complete(struct dsscomp_adapt_info *adapt_info, unsigned long msec, int *ret);
 void dsscomp_adapt_free(struct dsscomp_adapt_info *adapt_info);

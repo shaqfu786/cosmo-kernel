@@ -400,6 +400,9 @@ static struct device_attribute *display_sysfs_attrs[] = {
 	&dev_attr_rotate,
 	&dev_attr_mirror,
 	&dev_attr_wss,
+	&dev_attr_s3d_enable,
+	&dev_attr_s3d_type,
+	&dev_attr_s3d_order,
 	NULL
 };
 
